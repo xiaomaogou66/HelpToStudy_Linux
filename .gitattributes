@@ -1,0 +1,7 @@
+# 统一 LF 行尾：bash 脚本必须 LF 才能正常执行
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.desktop text eol=lf

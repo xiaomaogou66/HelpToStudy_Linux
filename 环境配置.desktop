@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI学习工作流-环境配置
+Comment=检测并安装 Obsidian / Python / Node.js / Git / Claude Code / cc-switch
+Terminal=true
+Exec=sh -c 'cd "$(dirname "$1")" && exec ./环境配置.sh' sh %k
+Icon=preferences-system
+Categories=Utility;

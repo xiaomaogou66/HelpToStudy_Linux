@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI学习工作流-安装库
+Comment=安装「AI 学习工作流」Obsidian 库
+Terminal=true
+Exec=sh -c 'cd "$(dirname "$1")" && exec ./安装.sh' sh %k
+Icon=folder-download
+Categories=Utility;

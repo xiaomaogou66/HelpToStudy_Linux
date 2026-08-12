@@ -1,0 +1,116 @@
+name: Build & Publish Release (Linux)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "版本号（如 v1.0.0）；留空则按当前日期自动生成"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 语法检查
+        run: |
+          bash -n 环境配置.sh 安装.sh QuickInstall.sh push-to-github.sh _工具/拆书.sh _工具/设置MinerU令牌.sh scripts/build-release.sh
+
+      - name: 构建 Release 资产
+        id: build
+        env:
+          TAG_INPUT: ${{ inputs.tag }}
+        run: |
+          tag="$TAG_INPUT"
+          if [ -z "$tag" ]; then
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              tag="${GITHUB_REF_NAME}"
+            else
+              tag="v$(date +%Y.%m.%d)"
+            fi
+          fi
+          case "$tag" in
+            v*) ;;
+            *) echo "非法版本号: $tag" >&2; exit 1 ;;
+          esac
+          mkdir -p "${RUNNER_TEMP}/release"
+          ./scripts/build-release.sh -t "$tag" -r "$GITHUB_REPOSITORY" -o "${RUNNER_TEMP}/release"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: 校验 zip 资产
+        run: |
+          python3 - <<'PY'
+          import glob, os, zipfile
+          z = glob.glob(os.path.join(os.environ["RUNNER_TEMP"], "release", "HelpToStudy-Vault-*.zip"))[0]
+          with zipfile.ZipFile(z) as f:
+              names = f.namelist()
+              for need in ("QuickInstall.sh", "拆书.sh", "环境配置.sh", "安装.sh"):
+                  assert any(n.endswith(need) for n in names), f"缺少 {need}"
+              qi = [n for n in names if n.endswith("QuickInstall.sh")][0]
+              mode = (f.getinfo(qi).external_attr >> 16) & 0o777
+              assert mode & 0o111, "QuickInstall.sh 缺少可执行位"
+          print("zip 资产校验通过")
+          PY
+
+      - name: 创建 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.build.outputs.tag }}"
+          gh release create "$tag" \
+            "${RUNNER_TEMP}/release/HelpToStudy-Vault-$tag.zip" \
+            "${RUNNER_TEMP}/release/HelpToStudy-QuickInstall.sh" \
+            --repo "$GITHUB_REPOSITORY" \
+            --notes-file "${RUNNER_TEMP}/release/release-notes.md"
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 准备环境（Arch 容器）
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed git bash python python-pip python-venv curl
+
+      - name: 语法检查
+        run: |
+          bash -n 环境配置.sh 安装.sh QuickInstall.sh _工具/拆书.sh _工具/设置MinerU令牌.sh scripts/build-release.sh
+
+      - name: 环境配置检测（只查不装）
+        run: ./环境配置.sh --check-only
+
+      - name: 安装库（无弹窗、不开 Obsidian）
+        run: |
+          ./安装.sh --no-dialog --no-open-obsidian --skip-mineru --vault-path /tmp/AI学习工作流
+          test -x "/tmp/AI学习工作流/_工具/.venv/bin/python"
+          test -f "/tmp/AI学习工作流/04-教材分块/📖 教材分块说明.md"
+          test -x "/tmp/AI学习工作流/_工具/拆书.sh"
+          test -x "/tmp/AI学习工作流/_工具/设置MinerU令牌.sh"
+
+      - name: 拆书重切分（不耗 MinerU 额度）
+        run: |
+          mkdir -p /tmp/book
+          printf '%s\n' '# 书名解析全文' '' '# Chapter 1 Hello' 'some text for chapter one' '' '# Chapter 2 World' 'more text for chapter two' > /tmp/book/00-MinerU解析全文.md
+          /tmp/AI学习工作流/_工具/.venv/bin/python /tmp/AI学习工作流/_工具/split_textbook.py "/tmp/book/00-MinerU解析全文.md" --out /tmp/AI学习工作流/04-教材分块 --split-mode chapter
+          find /tmp/AI学习工作流/04-教材分块 -name '01-全书大纲.md' | grep -q . && echo "重切分 OK"
+
+      - name: 非 PDF 输入提示
+        run: |
+          echo "fake" > /tmp/book/notbook.epub
+          set +e
+          /tmp/AI学习工作流/_工具/.venv/bin/python /tmp/AI学习工作流/_工具/split_textbook.py /tmp/book/notbook.epub --out /tmp/AI学习工作流/04-教材分块 > /tmp/out.txt 2>&1
+          grep -q "仅支持" /tmp/out.txt && echo "非 PDF 提示 OK"

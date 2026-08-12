@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=拆书（MinerU）
+Comment=导入 PDF，MinerU 云端识别并按章节拆分；也支持 00-MinerU解析全文.md 重切分
+Terminal=true
+Exec=sh -c 'cd "$(dirname "$1")" && exec ./拆书.sh' sh %k
+Icon=document-save
+Categories=Utility;
