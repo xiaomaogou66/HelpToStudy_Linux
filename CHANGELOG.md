@@ -33,6 +33,10 @@
 
 ### 其他
 
+- 发布流水线：仓库里 7 个 `.sh` 的 git mode 改为 `100755`（此前 `./scripts/build-release.sh`
+  在 Actions 里以 `exit 126 Permission denied` 失败，v0.1.0 起就一直没跑绿过），
+  workflow 里也补了 `chmod +x`；发布步骤改成幂等（Release 已存在只覆盖资产）；
+  `smoke-test` 冒烟作业改为只报告不卡发布（`continue-on-error`）
 - `环境配置.sh` 增加 `ghostscript`（降采样依赖，缺失时自动退回原文件分块上传）
 - 文档同步：`README.md`、`00-使用指南/📖 使用说明.md`、
   `01-提示词库/Step1-教材导入与拆书.md` 补上上述行为与两条常见问题
