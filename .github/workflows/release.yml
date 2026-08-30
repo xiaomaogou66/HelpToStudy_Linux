@@ -23,6 +23,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 补上脚本可执行位（不依赖 git mode）
+        run: chmod +x ./*.sh ./_工具/*.sh ./scripts/*.sh 2>/dev/null || true
+
       - name: 语法检查
         run: |
           bash -n 环境配置.sh 安装.sh QuickInstall.sh push-to-github.sh _工具/拆书.sh _工具/设置MinerU令牌.sh scripts/build-release.sh
@@ -63,16 +66,21 @@ jobs:
           print("zip 资产校验通过")
           PY
 
-      - name: 创建 GitHub Release
+      - name: 创建 / 更新 GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ steps.build.outputs.tag }}"
-          gh release create "$tag" \
-            "${RUNNER_TEMP}/release/HelpToStudy-Vault-$tag.zip" \
-            "${RUNNER_TEMP}/release/HelpToStudy-QuickInstall.sh" \
-            --repo "$GITHUB_REPOSITORY" \
-            --notes-file "${RUNNER_TEMP}/release/release-notes.md"
+          ZIP="${RUNNER_TEMP}/release/HelpToStudy-Vault-$tag.zip"
+          QI="${RUNNER_TEMP}/release/HelpToStudy-QuickInstall.sh"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag 已存在：只覆盖资产，不改说明正文"
+            gh release upload "$tag" "$ZIP" "$QI" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" "$ZIP" "$QI" \
+              --repo "$GITHUB_REPOSITORY" \
+              --notes-file "${RUNNER_TEMP}/release/release-notes.md"
+          fi
 
   smoke-test:
     runs-on: ubuntu-latest
@@ -80,6 +88,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: 补上脚本可执行位（不依赖 git mode）
+        run: chmod +x ./*.sh ./_工具/*.sh ./scripts/*.sh 2>/dev/null || true
 
       - name: 准备环境（Arch 容器）
         run: |
