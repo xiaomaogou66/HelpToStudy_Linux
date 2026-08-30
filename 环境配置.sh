@@ -131,35 +131,36 @@ find_aur_helper() {
 REPORT=()
 
 # =============================================================
-# 0) 基础工具：文件选择（zenity）、xdg-open、下载（curl）
+# 0) 基础工具：文件选择（zenity）、xdg-open、下载（curl）、
+#    扫描版降采样（ghostscript：拆书上传前把 300 DPI 压到 200 DPI）
 #    niri / GNOME 等无 kdialog 的环境靠 zenity 完成图形选目录/选文件
 # =============================================================
 ensure_base_tools() {
     case "$PKG_MANAGER" in
         pacman)
-            run_privileged pacman -S --noconfirm --needed zenity xdg-utils curl
+            run_privileged pacman -S --noconfirm --needed zenity xdg-utils curl ghostscript
             ;;
         apt)
             run_privileged apt-get update -qq
-            run_privileged apt-get install -y zenity xdg-utils curl
+            run_privileged apt-get install -y zenity xdg-utils curl ghostscript
             ;;
         dnf)
-            run_privileged dnf install -y zenity xdg-utils curl
+            run_privileged dnf install -y zenity xdg-utils curl ghostscript
             ;;
         zypper)
-            run_privileged zypper install -y zenity xdg-utils curl
+            run_privileged zypper install -y zenity xdg-utils curl ghostscript
             ;;
     esac
 }
 
 if [ "$CHECK_ONLY" = false ]; then
-    head "检查基础工具（zenity / xdg-utils / curl）"
+    head "检查基础工具（zenity / xdg-utils / curl / ghostscript）"
     if ensure_base_tools; then
         ok "基础工具已就绪"
-        REPORT+=("基础工具(zenity/xdg-utils/curl): 已就绪")
+        REPORT+=("基础工具(zenity/xdg-utils/curl/ghostscript): 已就绪")
     else
         warn "基础工具安装失败（不影响核心流程，但图形选文件可能不可用）"
-        REPORT+=("基础工具(zenity/xdg-utils/curl): 安装失败")
+        REPORT+=("基础工具(zenity/xdg-utils/curl/ghostscript): 安装失败")
     fi
 fi
 

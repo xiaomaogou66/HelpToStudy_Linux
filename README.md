@@ -105,11 +105,23 @@ AI 只负责读写，不把整个库塞进对话，因此省钱、可长期使�
 
 - 仅支持 PDF：MinerU 云端 OCR（扫描版）+ 公式转 LaTeX，自动按章拆分；
   英文书默认 `--mineru-language en`，中文书加 `--mineru-language ch`
-- 章节识别支持中/英/意/西/法常见标题（含意大利语序数词课名、目录页码格式），
-  识别不到章节时全书保存为一个文件并提示校准，绝不乱切
-- 生成的章节笔记里图片统一使用 Obsidian 原生嵌入 `![[图片名]]`
-- OCR 漏掉章节标题时，可用 `--opener-pattern` 补充定位：
+- **大扫描件也传得上去**：上传按「≤200 页 且 ≤25 MB」分块（`mineru-open-api` 的
+  上传超时窗口在 1–2 MB/s 的上行下只吃得下几十 MB）；每页平均体积一超上限就先用
+  Ghostscript 降到 200 DPI（实测 191 MB → 63 MB，识别精度不受影响，结果缓存在
+  `_工具/.mineru_cache/`，同一本书重跑不压第二次），单份上传超时还会自动对半切小重传。
+  可调：`--mineru-chunk-mb 8`、`--mineru-dpi 150`、`--mineru-dpi 0`（不压缩直传）
+- **章节识别**支持中/英/意/西/法常见标题（含意大利语序数词课名、目录页码格式）；
+  章标题被 OCR 整批打掉时（如《现代西班牙语》每课用了装饰字体的 UNIDAD 标题，
+  16 课只认出 7 个），默认自动改走「每章固定收尾小节」定位：从正文里挖出
+  每章都出现、只出现一次且间隔均匀的小节（如「作业 (Trabajos de casa)」）当章界锚点，
+  实测 16 课一次切准；只有比通用识别切出更多章时才采用，正常书不受影响。
+  可自己指定：`--chapter-end-pattern '习题\s*\(Ejercicios'`；关掉：`--chapter-end-pattern off`
+- 识别不到章节时全书保存为一个文件并提示校准，绝不乱切；重切不耗额度（把
+  `00-MinerU解析全文.md` 交给 `_工具/拆书.sh` 即可），还可用 `--opener-pattern`
+  补充定位：
   `python _工具/split_textbook.py "<书>/00-MinerU解析全文.md" --out "04-教材分块" --split-mode chapter --opener-pattern "Impariamo a parlare"`
+- 生成的章节笔记里图片统一使用 Obsidian 原生嵌入 `![[图片名]]`；
+  前言/目录、书后总词汇表各自单独成块，分块字数合计 = 全文字数，不漏不重
 - 想先看分块计划不耗额度：`--mineru-dry-run`
 
 ## 目录结构
@@ -156,6 +168,18 @@ A：先运行「环境配置.sh」安装 Claude Code（或自行安装 Codex CLI
 **Q：拆书报「找不到 MinerU 命令行工具」？**
 A：安装时已自动执行 `pip install mineru-open-api`（可用 `--skip-mineru` 跳过）。
 手动补救：`_工具/.venv/bin/pip install mineru-open-api`。
+
+**Q：拆书卡在「上传解析中」反复重试，报 `context deadline exceeded`？**
+A：扫描版单份体积太大（200 页能到 127 MB），上行没传完就被工具的超时掐断。
+现在默认会自动降到 200 DPI 并按 ≤25 MB/份分块（需要 ghostscript，「环境配置.sh」
+已一并安装），单份仍超时会自动切小重传。网络还是慢就：
+`_工具/拆书.sh 某本书.pdf --mineru-chunk-mb 8`；先看计划不耗额度：`--mineru-dry-run`。
+
+**Q：整本书只切出两三个大文件（章节没识别到）？**
+A：章标题用了装饰字体时会被 OCR 整批打掉，工具已默认自动改按「每章固定收尾小节」
+定位章界。拿已生成的全文重切不耗额度：
+`_工具/拆书.sh "04-教材分块/<书名>/00-MinerU解析全文.md"`；
+需要时再给收尾小节正则：`--chapter-end-pattern '作业\s*\(Trabajos de casa'`。
 
 **Q：AUR 助手（paru/yay）都没有，cc-switch 装不上？**
 A：手动执行：

@@ -3,7 +3,14 @@
 #  拆书（Linux 版 · MinerU 单流程）
 #  - PDF            → MinerU 云端 OCR（公式转 LaTeX）+ 按章拆分
 #  - 00-MinerU解析全文.md → 直接按章节重切分（不耗额度）
-#  用法：拆书.sh [PDF 或 00-MinerU解析全文.md 的路径]
+#  用法：拆书.sh [PDF 或 00-MinerU解析全文.md 的路径] [传给 split_textbook.py 的额外参数]
+#  例如：拆书.sh 某本书.pdf --mineru-chunk-mb 10   # 上行网络慢，每份传得更小
+#        拆书.sh 某本书.pdf --mineru-dpi 150       # 扫描页降得更狠（默认 200）
+#        拆书.sh 某本书.pdf --mineru-dry-run       # 只看分块计划，不耗额度
+#  章标题识别不到（如《现代西班牙语》每课的 UNIDAD）：已默认自动处理（auto），
+#  拿已生成的全文重切不耗额度：
+#        拆书.sh "04-教材分块/<书名>/00-MinerU解析全文.md"
+#        （想自己指定章界锚点：--chapter-end-pattern '习题\s*\(Ejercicios'；关掉：off）
 # =============================================================
 set -euo pipefail
 
@@ -58,9 +65,10 @@ echo "输出目录：$OUT"
 echo ""
 
 EXT="${FILE##*.}"
+EXTRA=("${@:2}")
 if [ "${EXT,,}" = "md" ]; then
     echo "检测到 Markdown 全文，按章节重切分（不消耗 MinerU 额度）..."
-    "$PY" "$SCRIPT" "$FILE" --out "$OUT" --split-mode chapter
+    "$PY" "$SCRIPT" "$FILE" --out "$OUT" --split-mode chapter "${EXTRA[@]}"
 elif [ "${EXT,,}" = "pdf" ]; then
     # MinerU Token：环境变量 > token 文件 > 手动输入
     TOKEN=""
@@ -82,7 +90,8 @@ elif [ "${EXT,,}" = "pdf" ]; then
     export AIWF_MINERU_CLI="$MINERU_CLI"
     export AIWF_MINERU_TOKEN_FILE="$TOKEN_FILE"
     echo "上传到 MinerU 云端解析并按章节拆分。750 页的书大约需要 20-40 分钟，请耐心等待..."
-    "$PY" "$SCRIPT" "$FILE" --out "$OUT" --ocr mineru --split-mode chapter --mineru-token "$TOKEN"
+    echo "（扫描版超大会自动降到 200 DPI 并按 ≤25 MB/份 分块上传，失败会自动切小重传）"
+    "$PY" "$SCRIPT" "$FILE" --out "$OUT" --ocr mineru --split-mode chapter --mineru-token "$TOKEN" "${EXTRA[@]}"
 else
     echo "[错误] Linux 版仅支持 PDF（MinerU 云端识别）或 00-MinerU解析全文.md 重切分。"
     exit 1
