@@ -1,5 +1,13 @@
 # 更新记录
 
+## v0.3.3（2026-09-23）
+
+补丁版：UTF-8 输出兜底（与 Windows 版 v1.1.2 同一修复）。
+
+- `打卡.py`、`周文件夹.py`、`导出ics.py`、`sync_gcal.py` 启动时统一把 stdout/stderr
+  重设为 UTF-8（`errors="replace"`）：输出被管道 / 重定向捕获时（CI、脚本互调、
+  `> 日志.txt`）不再因为中文触发 `UnicodeEncodeError`
+
 ## v0.3.2（2026-09-23）
 
 补丁版：时区兜底（与 Windows 版 v1.1.1 同一修复）。
