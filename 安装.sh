@@ -133,12 +133,14 @@ fi
 
 # ---------- 1. 创建目录 ----------
 head "第 1 步：创建库目录结构"
-mkdir -p "$VAULT_PATH"/{00-使用指南,01-提示词库,02-模板,03-学习主题,04-教材分块,_工具,_备份,copilot/copilot-custom-prompts,images}
+mkdir -p "$VAULT_PATH"/{00-使用指南,01-提示词库,02-模板,03-学习主题,04-教材分块,_工具,copilot/copilot-custom-prompts,images}
+mkdir -p "$VAULT_PATH/05-日程安排"/{00-配置,_脚本,06-日志,_资源/日历,_归档} \
+         "$VAULT_PATH/.pi/skills"
 ok "目录结构已就绪"
 
 # ---------- 2. 复制内容 ----------
 head "第 2 步：复制模板 / 提示词 / 命令 / 配置"
-for d in 00-使用指南 01-提示词库 02-模板 .claude copilot .obsidian; do
+for d in 00-使用指南 01-提示词库 02-模板 05-日程安排 .claude .pi copilot .obsidian; do
     [ -d "$REPO_ROOT/$d" ] || continue
     mkdir -p "$VAULT_PATH/$d"
     cp -R "$REPO_ROOT/$d"/. "$VAULT_PATH/$d"/
@@ -153,12 +155,24 @@ find "$VAULT_PATH/.obsidian" \( -name data.json -o -name workspace.json \) -dele
 cp -R "$REPO_ROOT/_工具"/. "$VAULT_PATH/_工具"/
 rm -rf "$VAULT_PATH/_工具/.venv" "$VAULT_PATH/_工具/__pycache__"
 
+# 日程安排层：只带“骨架”进来，个人内容（日志/课表/词库/密钥）一律不带
+find "$VAULT_PATH/05-日程安排" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
+rm -f "$VAULT_PATH/05-日程安排/_脚本"/calender-*.json \
+      "$VAULT_PATH/05-日程安排/_脚本"/service-account*.json \
+      "$VAULT_PATH/05-日程安排/_脚本"/token.json 2>/dev/null || true
+# 课表样例：没有真课表时用它先跑通；换课表时直接覆盖 _资源/日历/课表-当前.ics
+if [ ! -f "$VAULT_PATH/05-日程安排/_资源/日历/课表-当前.ics" ]; then
+    cp -f "$REPO_ROOT/05-日程安排/_资源/日历/课表示例.ics" \
+          "$VAULT_PATH/05-日程安排/_资源/日历/课表-当前.ics" 2>/dev/null || true
+fi
+mkdir -p "$VAULT_PATH/05-日程安排/06-日志" "$VAULT_PATH/05-日程安排/_归档"
+
 cp -f "$REPO_ROOT/03-学习主题/📌 从这里开始.md" "$VAULT_PATH/03-学习主题/" 2>/dev/null || true
 cp -f "$REPO_ROOT/04-教材分块/📖 教材分块说明.md" "$VAULT_PATH/04-教材分块/" 2>/dev/null || true
 cp -f "$REPO_ROOT/AGENTS.md" "$VAULT_PATH/" 2>/dev/null || true
 cp -f "$REPO_ROOT/CLAUDE.md" "$VAULT_PATH/" 2>/dev/null || true
 
-chmod +x "$VAULT_PATH/_工具"/*.sh 2>/dev/null || true
+chmod +x "$VAULT_PATH/_工具"/*.sh "$VAULT_PATH/05-日程安排/_脚本"/*.sh 2>/dev/null || true
 ok "内容复制完成（启动器已赋予可执行权限）"
 
 # ---------- 2.5 应用启动器条目（niri / fuzzel / rofi / 各类应用菜单可用） ----------
@@ -246,6 +260,17 @@ if [ "$SKIP_PYTHON" = false ]; then
             warn "MinerU 工具安装失败，可稍后手动执行：$VENV_PY -m pip install mineru-open-api"
         fi
     fi
+
+    # 日程安排层依赖（Google 日历后端；不装也完全能用 ics 后端）
+    SCHED_REQ="$REPO_ROOT/05-日程安排/_脚本/requirements.txt"
+    if [ -f "$SCHED_REQ" ]; then
+        if pip_retry "日程同步依赖" -r "$SCHED_REQ"; then
+            ok "日程同步依赖已安装（google-api-python-client / google-auth-oauthlib / PySocks）"
+        else
+            warn "日程同步依赖没装上：Google 后端暂时不可用，ics 后端不受影响。"
+            warn "稍后可手动执行：$VENV_PY -m pip install -r 05-日程安排/_脚本/requirements.txt"
+        fi
+    fi
 else
     warn "已跳过 Python 环境安装（--skip-python）"
 fi
@@ -261,7 +286,8 @@ echo "  1) 用 Obsidian 打开该文件夹（作为库）"
 echo "  2) 首次打开若提示「信任社区插件」，请选择信任"
 echo "  3) 右侧边栏打开 Claudian，在设置里选择后端（本机 Codex 或 Claude Code）"
 echo "  4) 扫描版/数学书才需要：运行 _工具/设置MinerU令牌.sh 保存 Token"
-echo "  5) 打开 00-使用指南/📖 使用说明.md 开始使用"
+echo "  5) （可选）自检一遍：05-日程安排/_脚本/自检.sh
+  6) 打开 00-使用指南/📖 使用说明.md 开始使用"
 echo "======================================"
 
 if [ "$OPEN_OBSIDIAN" = true ]; then

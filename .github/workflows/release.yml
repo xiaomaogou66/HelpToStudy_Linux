@@ -98,7 +98,7 @@ jobs:
       - name: 准备环境（Arch 容器）
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed git bash python python-pip python-venv curl
+          pacman -S --noconfirm --needed git bash python python-pip curl
 
       - name: 语法检查
         run: |

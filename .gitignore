@@ -3,6 +3,19 @@
 04-教材分块/*/
 _备份/
 
+# ---- 日程安排层：只发布骨架，个人内容不进版本库 ----
+05-日程安排/06-日志/*/
+05-日程安排/_归档/
+05-日程安排/_资源/anki/
+05-日程安排/_资源/*.ical
+05-日程安排/_资源/日历/课表-当前.ics
+05-日程安排/_资源/日历/课表-历史/
+05-日程安排/_脚本/.打卡.log
+05-日程安排/_脚本/calender-*.json
+05-日程安排/_脚本/service-account*.json
+05-日程安排/_脚本/token.json
+05-日程安排/_脚本/credentials.json
+
 # ---- 密钥与机器专属配置 ----
 .obsidian/plugins/*/data.json
 .obsidian/workspace.json
@@ -21,3 +34,4 @@ dist/
 # ---- 系统 ----
 Thumbs.db
 .DS_Store
+scripts/scrub-map.local.txt

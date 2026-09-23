@@ -19,7 +19,7 @@
 
 安全与防重复:
     每本书生成稳定的 book_id；重复拆分同一本书不会产生重复文件夹，
-    旧文件会自动备份到 <书名>/_备份/ 后原地更新（最多保留 5 份历史）。
+    旧文件会自动备份到库外 ~/obsidian_backups/拆书/<书名>/ 后原地更新（最多保留 5 份历史）。
 """
 
 import argparse
@@ -44,7 +44,7 @@ except Exception:
 
 SUPPORTED = {".pdf"}
 
-# 章节词：英文 / 意大利语 / 西班牙语（含常见 OCR 无重音变体）
+# 章节词：英文 / 意大利语 / 外语（含常见 OCR 无重音变体）
 CHAPTER_WORD = r"(?:chapter|chap\.?|capitolo|capitulo|cap[íi]tulo|cap\.?)"
 
 # 锚点/目录用章节词（比 CHAPTER_WORD 更全：含 Lesson/Unit/Lezione 等）
@@ -117,9 +117,22 @@ def _resolve_mineru_token_file() -> Path:
 MINERU_DEFAULT_CLI = _resolve_mineru_cli()
 MINERU_TOKEN_FILE = _resolve_mineru_token_file()
 
-# 安全写入：备份目录名与保留份数
-BACKUP_DIR_NAME = "_备份"
+# 安全写入：备份保留份数；备份一律放【库外】，避免在 Obsidian 图谱里产生重复节点
+BACKUP_DIR_NAME = "_备份"  # 仅用于兜底（未设置书目录时）
 BACKUP_KEEP = 5
+BACKUP_HOME = Path.home() / "obsidian_backups" / "拆书"
+
+_BOOK_BACKUP_ROOT: "Path | None" = None
+
+
+def set_book_backup_root(book_id: str) -> None:
+    """在确定书名文件夹后调用：本书的备份根目录 = ~/obsidian_backups/拆书/<书名>/"""
+    global _BOOK_BACKUP_ROOT
+    _BOOK_BACKUP_ROOT = BACKUP_HOME / book_id
+
+
+def book_backup_root(path: Path) -> Path:
+    return _BOOK_BACKUP_ROOT or (path.parent / BACKUP_DIR_NAME)
 
 
 # ---------- 安全写入（借鉴 obsidian-vault-mcp：原子替换 + 自动备份） ----------
@@ -135,9 +148,9 @@ def prune_backups(backup_root: Path, keep: int = BACKUP_KEEP) -> None:
 
 
 def backup_if_exists(path: Path) -> None:
-    """覆盖前先把旧文件复制到 <目录>/_备份/<时间戳>/。"""
+    """覆盖前先把旧文件复制到库外 ~/obsidian_backups/拆书/<书名>/<时间戳>/。"""
     if path.exists():
-        backup_root = path.parent / BACKUP_DIR_NAME
+        backup_root = book_backup_root(path)
         stamp = time.strftime("%Y%m%d-%H%M%S")
         dest_dir = backup_root / stamp
         dest_dir.mkdir(parents=True, exist_ok=True)
@@ -272,8 +285,8 @@ def _find_gs() -> str:
 MINERU_CACHE_KEEP = 6
 
 # 已知书系的「每章固定收尾小节」预设（可选扩展点）：(书名关键词, 收尾小节正则, 章标题特征正则)
-# 不命中也没关系：默认的 auto 会从正文自己挖（《现代西班牙语》已能自动识别，无需预设）
-#   ("现代西班牙语", r"作业\s*\(Trabajos de casa", r"^\s*(?:#{1,6}\s*)?(?:[A-Za-z田\s]{0,8})?\b(?:UNIDAD|…)"),
+# 不命中也没关系：默认的 auto 会从正文自己挖（《某外语教材》已能自动识别，无需预设）
+#   ("某外语教材", r"作业\s*\(Trabajos de casa", r"^\s*(?:#{1,6}\s*)?(?:[A-Za-z田\s]{0,8})?\b(?:UNIDAD|…)"),
 END_ANCHOR_PRESETS = []
 
 
@@ -738,11 +751,13 @@ BACK_MATTER_KEYWORDS_ZH = [
     "习题答案",
     "练习答案",
     "答案",
-    "附录",
     "索引",
     "参考文献",
     "词汇表",
     "附表",
+    "术语表",
+    "译后记",
+    "译 后 记",
 ]
 BACK_MATTER_KEYWORDS_ES = [
     "respuestas a las preguntas",
@@ -1194,24 +1209,55 @@ def _backtrack_opener(lines, start_line: int, prev_line: int, scan_end: int):
     return None
 
 
+# 标题前缀（去噪用）：正文章标题常带「第N章 / N / N. / N、」前缀（MinerU 有时只认出编号）
+_HEAD_PREFIX_RE = re.compile(
+    r"^(?:第\s*[0-9零〇一二三四五六七八九十百千万]+\s*[章节篇部讲课]"
+    r"|chapter\s*[0-9零〇一二三四五六七八九十]+"
+    r"|[0-9]{1,3}\s*[.、．]?\s*)",
+    re.I,
+)
+
+
+def _head_core(title: str) -> str:
+    """标题归一 + 去掉「第N章 / N / N.」编号前缀，用于目录名↔正文标题比对。"""
+    t = (title or "").strip()
+    t = _HEAD_PREFIX_RE.sub("", t, count=1)
+    return _norm_title(t)
+
+
 def _find_title_anchor(titles, tn: str, prev_line: int):
-    """在正文纯标题行中找与目录章名匹配的一行（先精确、后前缀），返回行号或 None。"""
+    """在正文纯标题行中找与目录章名匹配的一行，返回行号或 None。
+
+    比对先整体精确，再「去编号前缀后精确/双向前缀」：
+    正文标题常是「# 4 货币系统：…」（多个编号）或「# 开放的经济」（丢了「第N章」），
+    与目录名「货币系统：…」只有前缀之差。候选必须在该章第一个锚点之后（prev_line）。"""
     tn_norm = _norm_title(tn)
     if not tn_norm or len(tn_norm) < 2:
         return None
-    exact = [
-        i for i, t in titles if i > prev_line and _norm_title(t) == tn_norm
-    ]
+    cands = [(i, t) for i, t in titles if i > prev_line]
+    exact = [i for i, t in cands if _norm_title(t) == tn_norm]
     if exact:
         return exact[-1]
-    if len(tn_norm) >= 10:
+    # 去编号前缀后比对：正文「13 重访开放经济: …」↔ 目录「重访开放经济：…」
+    loose = [
+        (i, _head_core(t))
+        for i, t in cands
+        if _head_core(t) and _head_core(t) == tn_norm
+    ]
+    if loose:
+        return loose[-1][0]
+    if len(tn_norm) >= 8:
         pref = [
-            i
-            for i, t in titles
-            if i > prev_line and _norm_title(t).startswith(tn_norm)
+            (i, _head_core(t))
+            for i, t in cands
+            if _head_core(t)
+            and (
+                _head_core(t).startswith(tn_norm)
+                or (len(_head_core(t)) >= 8 and tn_norm.startswith(_head_core(t)))
+            )
         ]
         if pref:
-            return pref[-1]
+            return pref[-1][0]
     return None
 
 
@@ -1498,7 +1544,7 @@ def build_chapter_plan_by_end_anchor(
     """按「每一章都以同一个固定小节收尾」定位章界。
 
     适用于章标题用了装饰字体、被 OCR 整批打掉的教材：
-    如《现代西班牙语》16 个 UNIDAD 标题只认出 7 个，
+    如《某外语教材》16 个 UNIDAD 标题只认出 7 个，
     但每课末尾都有「作业 (Trabajos de casa)」，16 次一次不差。
 
     规则：每个收尾行之后的第一个章标题行（# 开头，或 --chapter-title-pattern 命中的行）
@@ -1835,6 +1881,7 @@ def process_file(src: Path, out_root: Path, max_chars: int, overlap: int, args):
         book_name = safe_name(args.book_name or src.stem, 60)
     book_dir = out_root / book_id
     book_dir.mkdir(parents=True, exist_ok=True)
+    set_book_backup_root(book_id)
 
     if is_resplit:
         engine = "resplit"
@@ -2004,17 +2051,18 @@ def process_file(src: Path, out_root: Path, max_chars: int, overlap: int, args):
         atomic_write(fpath, content)
         chunks_meta.append((chunk_no, fname, title, len(piece), preview, idx))
 
-    # 旧的、本次未生成的分块文件移入备份（防残留旧碎片）
+    # 旧的、本次未生成的分块文件移入库外备份（防残留旧碎片）
     new_names = {m[1] for m in chunks_meta}
     stale = [p for p in book_dir.glob("章节*.md") if p.name not in new_names]
     if stale:
         stamp = time.strftime("%Y%m%d-%H%M%S")
-        dest = book_dir / BACKUP_DIR_NAME / stamp / "old-chunks"
+        backup_root = book_backup_root(book_dir)
+        dest = backup_root / stamp / "old-chunks"
         dest.mkdir(parents=True, exist_ok=True)
         for p in stale:
             shutil.move(str(p), dest / p.name)
-        prune_backups(book_dir / BACKUP_DIR_NAME)
-        print(f"[整理] 旧分块 {len(stale)} 个已备份到 _备份\\{stamp}\\old-chunks")
+        prune_backups(backup_root)
+        print(f"[整理] 旧分块 {len(stale)} 个已备份到 {dest}")
 
     engine_note = {
         "text": "文字层直接提取",

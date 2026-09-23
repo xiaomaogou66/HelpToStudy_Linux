@@ -7,7 +7,7 @@
 #  例如：拆书.sh 某本书.pdf --mineru-chunk-mb 10   # 上行网络慢，每份传得更小
 #        拆书.sh 某本书.pdf --mineru-dpi 150       # 扫描页降得更狠（默认 200）
 #        拆书.sh 某本书.pdf --mineru-dry-run       # 只看分块计划，不耗额度
-#  章标题识别不到（如《现代西班牙语》每课的 UNIDAD）：已默认自动处理（auto），
+#  章标题识别不到（如《某外语教材》每课的 UNIDAD）：已默认自动处理（auto），
 #  拿已生成的全文重切不耗额度：
 #        拆书.sh "04-教材分块/<书名>/00-MinerU解析全文.md"
 #        （想自己指定章界锚点：--chapter-end-pattern '习题\s*\(Ejercicios'；关掉：off）

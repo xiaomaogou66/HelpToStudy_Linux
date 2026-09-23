@@ -1,0 +1,7 @@
+# 同步日历脚本依赖（装到 ../../_工具/.venv 里）
+#   ../_工具/.venv/bin/python -m pip install -r requirements.txt
+google-api-python-client>=2.100
+google-auth-oauthlib>=1.0
+# ⚠️ 必须装：本机走 http 代理（127.0.0.1:7897），
+#    httplib2 缺了 PySocks 会静默直连 → 每次请求超时 20 秒后报 TimeoutError
+PySocks>=1.7
