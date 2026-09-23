@@ -52,7 +52,7 @@ def collect(cfg: dict, win_lo: datetime, win_hi: datetime, ics_override: str | N
         given = Path(ics_override)
         paths = [given if given.is_absolute() else VAULT / given]
     else:
-        paths = [q for pattern in cfg.get("ics_files", []) for q in sorted(VAULT.glob(pattern))]
+        paths = S.resolve_ics_paths(cfg)
     courses: list = []
     for p in paths:
         courses += S.parse_ics(p, tz, win_lo, win_hi, tuple(cfg.get("ics_skip_summary_prefixes", ["📚"])))

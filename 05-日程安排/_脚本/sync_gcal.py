@@ -291,6 +291,21 @@ def load_config() -> dict:
     return cfg
 
 
+def resolve_ics_paths(cfg: dict) -> list[Path]:
+    """按配置展开课表 ics 路径；一个都没命中时退回「课表示例.ics」，让新库开箱即用。"""
+    paths = [q for pattern in cfg.get("ics_files") or [] for q in sorted(VAULT.glob(pattern))]
+    if not paths:
+        sample = VAULT / "05-日程安排/_资源/日历/课表示例.ics"
+        if sample.exists():
+            print(
+                "ℹ️  没找到配置里的课表文件，本次先用示例课表跑通流程。\n"
+                "     换成你自己的课表：把文件放到 05-日程安排/_资源/日历/课表-当前.ics\n"
+                "     （也可在 Claudian 里跑 /课表 导入）。"
+            )
+            return [sample]
+    return paths
+
+
 def find_credentials(cfg: dict) -> tuple[Path, str]:
     """返回 (密钥文件, 类型)，类型为 service_account 或 oauth。
 
@@ -633,7 +648,7 @@ def main() -> int:
         given = Path(args.ics)
         ics_paths = [given if given.is_absolute() else (VAULT / given)]
     else:
-        ics_paths = [q for pattern in cfg.get("ics_files", []) for q in sorted(VAULT.glob(pattern))]
+        ics_paths = resolve_ics_paths(cfg)
     if args.ics:
         print(f"📚 本次课表来源（--ics 覆盖）：{args.ics}")
 

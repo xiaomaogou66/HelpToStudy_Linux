@@ -69,7 +69,7 @@ def courses_by_day(mon: datetime, sun: datetime, cfg: dict) -> dict:
     tz = ZoneInfo(cfg["timezone"])
     lo = mon.replace(hour=0, minute=0, tzinfo=tz)
     hi = (sun + timedelta(days=1)).replace(hour=0, minute=0, tzinfo=tz)
-    paths = [q for pattern in cfg.get("ics_files", []) for q in sorted(VAULT.glob(pattern))]
+    paths = S.resolve_ics_paths(cfg)
     out: dict[str, list] = {}
     for p in paths:
         for e in S.parse_ics(p, tz, lo, hi, tuple(cfg.get("ics_skip_summary_prefixes", ["📚"]))):

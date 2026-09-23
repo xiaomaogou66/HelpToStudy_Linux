@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-把厚教材 PDF 拆成适合 AI 对话的小分块笔记（Linux 版仅保留 MinerU 流程）。
+把厚教材 PDF 拆成适合 AI 对话的小分块笔记（**全走 MinerU 云端识别**，不做本地提取）。
 
 用法:
     python split_textbook.py "教材.pdf" --out "04-教材分块" --ocr mineru --mineru-token "你的Token"
@@ -179,7 +179,7 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-# ---------- 说明：Linux 版仅保留 MinerU 流程，无文字层直接提取 ----------
+# ---------- 说明：全走 MinerU 流程（本地文字层提取已下线：EPUB/Word 请先转 PDF） ----------
 
 
 # ---------- OCR（扫描版 PDF） ----------
@@ -1894,8 +1894,8 @@ def process_file(src: Path, out_root: Path, max_chars: int, overlap: int, args):
     elif args.ocr == "mineru":
         if src.suffix.lower() != ".pdf":
             print(
-                "[跳过] Linux 版仅支持 PDF 教材（MinerU 云端识别）\n"
-                "       或 00-MinerU解析全文.md 重切分。"
+                "[跳过] 只支持 PDF（全走 MinerU 云端识别）：\n"
+                "       EPUB / Word 请先转成 PDF；已有 00-MinerU解析全文.md 可直接重切分。"
             )
             return
         engine = "mineru"
@@ -1924,7 +1924,7 @@ def process_file(src: Path, out_root: Path, max_chars: int, overlap: int, args):
     else:
         print(
             f"[跳过] {src.name} 不是 PDF。\n"
-            "       Linux 版仅支持 PDF（MinerU 云端识别，公式转 LaTeX）\n"
+            "       只支持 PDF（全走 MinerU 云端识别，公式转 LaTeX）\n"
             "       或 00-MinerU解析全文.md 重切分。"
         )
         return
@@ -2160,7 +2160,7 @@ def main():
         "--ocr",
         choices=["mineru"],
         default="mineru",
-        help="扫描版 PDF 用 MinerU 云端解析（公式转 LaTeX，免费 1000 页/天；Linux 版默认且唯一）",
+        help="扫描版 PDF 用 MinerU 云端解析（公式转 LaTeX，免费 1000 页/天；本仓库唯一 OCR 路径）",
     )
     parser.add_argument(
         "--mineru-token",
