@@ -141,8 +141,7 @@ def main() -> int:
         skip("跳过 Google 凭据检查（加 --联网 才查）")
 
     step("7. 统一入口")
-    entries = [SCRIPT_DIR / "同步日程.bat", SCRIPT_DIR / "同步日程.sh"]
-    found = [e.name for e in entries if e.exists()]
+    found = [f"同步日程{ext}" for ext in (".bat", ".sh") if (SCRIPT_DIR / f"同步日程{ext}").exists()]
     ok(f"统一入口存在：{' / '.join(found)}") if found else bad("缺统一入口（同步日程.bat / 同步日程.sh）")
 
     step("8. 命令与 skill 一致性")
@@ -200,7 +199,7 @@ def check_ics(path: Path) -> None:
 
 def check_token(path: Path) -> None:
     if not path.exists() or not path.read_text(encoding="utf-8").strip():
-        skip("跳过（还没保存 MinerU 令牌：跑 _工具/设置MinerU令牌.sh / .bat）")
+        skip("跳过（还没保存 MinerU 令牌：先运行 _工具 里的「设置MinerU令牌」启动器）")
         return
     days = int((datetime.now().timestamp() - path.stat().st_mtime) // 86400)
     token = path.read_text(encoding="utf-8").strip()
