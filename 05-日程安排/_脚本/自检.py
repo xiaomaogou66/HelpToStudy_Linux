@@ -165,6 +165,27 @@ def main() -> int:
     ok(f"split_textbook.py 可运行（{exe}）") if r.returncode == 0 else \
         skip("拆书环境还没装（跑 _工具/.venv 或 pip install -r _工具/requirements.txt）")
 
+    step("11. 分块策略回归（拆书 --audit，只读）")
+    blocks = VAULT / "04-教材分块"
+    if not blocks.exists():
+        skip("还没有 04-教材分块/")
+    else:
+        r2 = subprocess.run(
+            [exe, str(script), str(blocks), "--out", str(blocks), "--audit"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        out = (r2.stdout or "") + (r2.stderr or "")
+        nbad = out.count("⚠️") + out.count("[审计失败]")
+        # 表格里每本书一行，最后一列是策略名；用它数书
+        ncand = sum(
+            1 for ln in out.splitlines()
+            if any(k in ln for k in ("通用标题识别", "按每章收尾小节", "按每单元固定小节", "按每章名言开场"))
+        )
+        if r2.returncode == 0 and nbad == 0 and ncand:
+            ok(f"分块策略回归通过（{ncand} 本，0 警告）")
+        else:
+            bad(f"分块策略回归有 {nbad} 处警告/失败（{ncand} 本）→ 跑 `--audit` 看详情")
+
     print("\n" + "═" * 34)
     print(f"  通过 {PASS} 项，失败 {FAIL} 项")
     print("═" * 34)
