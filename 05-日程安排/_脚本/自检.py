@@ -167,8 +167,10 @@ def main() -> int:
 
     step("11. 分块策略回归（拆书 --audit，只读）")
     blocks = VAULT / "04-教材分块"
-    if not blocks.exists():
-        skip("还没有 04-教材分块/")
+    books = [d for d in blocks.glob("*") if d.is_dir() and not d.name.startswith(".")] \
+        if blocks.exists() else []
+    if not books:
+        skip("还没拆过书（04-教材分块/ 下没有书文件夹）")
     else:
         r2 = subprocess.run(
             [exe, str(script), str(blocks), "--out", str(blocks), "--audit"],
@@ -183,6 +185,8 @@ def main() -> int:
         )
         if r2.returncode == 0 and nbad == 0 and ncand:
             ok(f"分块策略回归通过（{ncand} 本，0 警告）")
+        elif r2.returncode == 0 and nbad == 0 and not ncand:
+            skip(f"{len(books)} 个书文件夹里没有可审计的分块（先跑一次 /拆书）")
         else:
             bad(f"分块策略回归有 {nbad} 处警告/失败（{ncand} 本）→ 跑 `--audit` 看详情")
 
