@@ -239,40 +239,6 @@ A：终端运行 `_工具/拆书.sh` 即可；安装库时已注册应用启动�
 也可从 fuzzel / rofi 等启动器搜索「拆书（MinerU）」。
 目录/文件选择由 zenity 提供（环境配置.sh 会自动安装 zenity、xdg-utils）。
 
-## 从零开始维护
-
-改了什么想同步回仓库？直接在仓库里改，然后：
-
-```bash
-git add -A
-git commit -m "更新说明"
-git push
-```
-
-内容目录（`00-使用指南`、`01-提示词库`、`02-模板`、`.claude`、`.obsidian`、
-`copilot`、`AGENTS.md`、`CLAUDE.md`）与 Windows 仓库保持一致；`_工具` 为平台差异区，
-不参与同步。
-
-想一键推到 GitHub：`./push-to-github.sh [仓库名] [public|private]`
-（默认 `HelpToStudy_Linux`、private；需要已安装并登录 `gh`）。
-
-### 发布新版本
-
-打 tag 并推送，GitHub Actions 会自动构建发布包并生成 Release：
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-也可以在本地生成资产后手动发布（Actions 不可用时的兜底）：
-
-```bash
-./scripts/build-release.sh -t v1.0.0 -r xiaomaogou66/HelpToStudy_Linux -o ./dist
-```
-
-会生成 `HelpToStudy-Vault-<版本>.zip`、`HelpToStudy-QuickInstall.sh` 和
-`release-notes.md`；手动发布时把前两个文件作为 Release 资产上传即可。
 
 ### 库可以随便拷贝、移动
 
