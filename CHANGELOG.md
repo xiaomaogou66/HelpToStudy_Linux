@@ -1,5 +1,20 @@
 # 更新记录
 
+## 未发布
+
+拆书支持 **MinerU 原生格式**：Word / PPT / Excel / 图片 / HTML 不再需要先转 PDF。
+
+- `_工具/split_textbook.py`：新增 `MINERU_NATIVE_EXT`（pdf｜png/jpg/jpeg/jp2/webp/gif/bmp｜
+  doc/docx/ppt/pptx｜xls/xlsx｜html）与**非 PDF 直送通道** `mineru_ocr_native()`——
+  不经 pypdf、不切块，直接上传源文件；Office 自动切 `pipeline`、HTML 自动切 `MinerU-HTML`；
+  >200 MB 提前报错；EPUB / 旧版 `.doc`·`.ppt` 才提示先转换。
+- `_工具/拆书.sh`：文件选择框、扩展名分支、错误提示同步放开到全部原生格式。
+- `AGENTS.md`：新增**「资料入库规则（硬性）」**——引入 PPT/Word/PDF/网页 URL/Excel 前先过拆书，
+  并明确「直接喂源文件，不要先转 PDF」，附云端 **≤200 MB / ≤600 页**与「文件名必须带后缀」约束。
+- `.claude/commands/拆书.md` + `.pi/skills/chai-shu.md`（同源两份）文档口径同步。
+- 验证：`py_compile` / `bash -n` 通过；真跑 `.docx`（pipeline）与 `.jpg`、`.html`（MinerU-HTML）dry-run 通过；
+  `split_textbook.py --audit` 全库 17 本切分无回归。
+
 ## v0.3.4（2026-10-05）
 
 补丁版：`/学案` 新增**第 10 条规则「教材插图必须内嵌」**——学案里能直接看到教材原图。
