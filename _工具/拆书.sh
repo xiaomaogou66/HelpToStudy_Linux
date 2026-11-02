@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # =============================================================
 #  拆书（Linux 版 · MinerU 单流程）
-#  - PDF            → MinerU 云端 OCR（公式转 LaTeX）+ 按章拆分
+#  - 任意 MinerU 原生格式 → 云端解析（公式转 LaTeX）+ 按章拆分，**不必先转 PDF**
+#       原生支持：pdf｜png/jpg/jpeg/jp2/webp/gif/bmp｜doc/docx/ppt/pptx｜html（官方文档另列 xls/xlsx）
+#       Office 自动用 pipeline 模型，HTML 自动用 MinerU-HTML 模型；单文件 ≤200 MB、≤600 页
 #  - 00-MinerU解析全文.md → 直接按章节重切分（不耗额度）
-#  用法：拆书.sh [PDF 或 00-MinerU解析全文.md 的路径] [传给 split_textbook.py 的额外参数]
+#  用法：拆书.sh [源文件或 00-MinerU解析全文.md 的路径] [传给 split_textbook.py 的额外参数]
 #  例如：拆书.sh 某本书.pdf --mineru-chunk-mb 10   # 上行网络慢，每份传得更小
 #        拆书.sh 某本书.pdf --mineru-dpi 150       # 扫描页降得更狠（默认 200）
 #        拆书.sh 某本书.pdf --mineru-dry-run       # 只看分块计划，不耗额度
@@ -34,7 +36,7 @@ fi
 
 echo "================================================"
 echo "  拆书 · MinerU 云端（公式转 LaTeX + 章节拆分）"
-echo "  PDF            → 云端 OCR + 按章拆分"
+echo "  PDF/Word/PPT/Excel/图片/HTML → 云端解析 + 按章拆分（不必先转 PDF）"
 echo "  00-MinerU解析全文.md → 重切分（不耗额度）"
 echo "================================================"
 echo ""
@@ -46,13 +48,13 @@ if [ -z "$FILE" ]; then
         *KDE*) IS_KDE=true ;;
     esac
     if [ "$IS_KDE" = true ] && command -v kdialog >/dev/null 2>&1; then
-        FILE="$(kdialog --getopenfilename . '*.pdf *.md|PDF / Markdown' 2>/dev/null)" || true
+        FILE="$(kdialog --getopenfilename . '*.pdf *.doc *.docx *.ppt *.pptx *.xls *.xlsx *.png *.jpg *.jpeg *.webp *.gif *.bmp *.html *.md|文档 / 图片 / Markdown' 2>/dev/null)" || true
     elif command -v zenity >/dev/null 2>&1; then
-        FILE="$(zenity --file-selection --file-filter='PDF / Markdown | *.pdf *.md' 2>/dev/null)" || true
+        FILE="$(zenity --file-selection --file-filter='文档 / 图片 / Markdown | *.pdf *.doc *.docx *.ppt *.pptx *.xls *.xlsx *.png *.jpg *.jpeg *.webp *.gif *.bmp *.html *.md' 2>/dev/null)" || true
     fi
 fi
 if [ -z "$FILE" ]; then
-    read -r -p "请把 PDF 或 00-MinerU解析全文.md 的路径粘贴到这里，然后按回车：" FILE
+    read -r -p "请把源文件（PDF/Word/PPT/Excel/图片/HTML）或 00-MinerU解析全文.md 的路径粘贴到这里，然后回车：" FILE
 fi
 if [ -z "$FILE" ]; then
     echo "没有输入文件路径，退出。"
@@ -69,7 +71,7 @@ EXTRA=("${@:2}")
 if [ "${EXT,,}" = "md" ]; then
     echo "检测到 Markdown 全文，按章节重切分（不消耗 MinerU 额度）..."
     "$PY" "$SCRIPT" "$FILE" --out "$OUT" --split-mode chapter "${EXTRA[@]}"
-elif [ "${EXT,,}" = "pdf" ]; then
+elif [ "${EXT,,}" = "pdf" ] || [ "${EXT,,}" = "doc" ] || [ "${EXT,,}" = "docx" ] || [ "${EXT,,}" = "ppt" ] || [ "${EXT,,}" = "pptx" ] || [ "${EXT,,}" = "xls" ] || [ "${EXT,,}" = "xlsx" ] || [ "${EXT,,}" = "png" ] || [ "${EXT,,}" = "jpg" ] || [ "${EXT,,}" = "jpeg" ] || [ "${EXT,,}" = "webp" ] || [ "${EXT,,}" = "gif" ] || [ "${EXT,,}" = "bmp" ] || [ "${EXT,,}" = "html" ] || [ "${EXT,,}" = "htm" ]; then
     # MinerU Token：环境变量 > token 文件 > 手动输入
     TOKEN=""
     if [ -f "$TOKEN_FILE" ]; then
@@ -89,11 +91,13 @@ elif [ "${EXT,,}" = "pdf" ]; then
     fi
     export AIWF_MINERU_CLI="$MINERU_CLI"
     export AIWF_MINERU_TOKEN_FILE="$TOKEN_FILE"
-    echo "上传到 MinerU 云端解析并按章节拆分。750 页的书大约需要 20-40 分钟，请耐心等待..."
+    echo "上传到 MinerU 云端解析并按章节拆分（原生格式直送，不经 PDF）。750 页的书大约需要 20-40 分钟，请耐心等待..."
     echo "（扫描版超大会自动降到 200 DPI 并按 ≤25 MB/份 分块上传，失败会自动切小重传）"
     "$PY" "$SCRIPT" "$FILE" --out "$OUT" --ocr mineru --split-mode chapter --mineru-token "$TOKEN" "${EXTRA[@]}"
 else
-    echo "[错误] Linux 版仅支持 PDF（MinerU 云端识别）或 00-MinerU解析全文.md 重切分。"
+    echo "[错误] 不能识别的扩展名：.${EXT}"
+    echo "        MinerU 原生支持：pdf、png/jpg/jpeg/jp2/webp/gif/bmp、doc/docx/ppt/pptx、html"
+    echo "        或 00-MinerU解析全文.md 重切分。"
     exit 1
 fi
 

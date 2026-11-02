@@ -42,7 +42,17 @@ try:
 except Exception:
     pass
 
-SUPPORTED = {".pdf"}
+# MinerU 精准解析原生支持的格式（无需先转 PDF）：
+# pdf ｜ png/jpg/jpeg/jp2/webp/gif/bmp ｜ doc/docx/ppt/pptx ｜ html
+# （官方 /apiManage/docs 另列 xls/xlsx；CLI help 暂未列出，失败时降级为「先导出 PDF」）
+MINERU_OFFICE_EXT = {".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"}
+MINERU_IMAGE_EXT = {".png", ".jpg", ".jpeg", ".jp2", ".webp", ".gif", ".bmp"}
+MINERU_HTML_EXT = {".html", ".htm"}
+MINERU_NATIVE_EXT = {".pdf"} | MINERU_OFFICE_EXT | MINERU_IMAGE_EXT | MINERU_HTML_EXT
+MINERU_MAX_MB = 200          # 云端单文件上限
+MINERU_MAX_PAGES = 600       # 云端单文件页数上限（文档另说过 200，按 CLI help 的 600）
+
+SUPPORTED = MINERU_NATIVE_EXT | {".md"}
 
 # 章节词：英文 / 意大利语 / 外语（含常见 OCR 无重音变体）
 CHAPTER_WORD = r"(?:chapter|chap\.?|capitolo|capitulo|cap[íi]tulo|cap\.?)"
@@ -551,6 +561,67 @@ def run_mineru_extract(
             f"{chunk.stat().st_size / 2**20:.1f} MB）：\n{detail[:600]}"
         )
     raise RuntimeError(f"MinerU 解析失败（{chunk.name}）：\n{detail[:1500]}"[:3000])
+
+
+def mineru_ocr_native(
+    path: Path,
+    token: str,
+    cli_arg: str,
+    language: str,
+    model: str,
+    dry_run: bool,
+    images_target: Path | None = None,
+    timeout: int = 1800,
+) -> str:
+    """非 PDF 原生格式（Office / 图片 / HTML）**直接**交给 MinerU，不转 PDF、不切块。
+
+    MinerU 精准解析 API 原生支持：pdf、png/jpg/jpeg/jp2/webp/gif/bmp、
+    doc/docx/ppt/pptx、html（官方文档另列 xls/xlsx）。
+    模型约束：HTML 必须用 ``MinerU-HTML``；Office 文件用 ``pipeline`` 更稳。
+    """
+    cli = find_mineru_cli(cli_arg)
+    token = get_mineru_token(token)
+    suffix = path.suffix.lower()
+    size_mb = path.stat().st_size / 2**20
+    if size_mb > MINERU_MAX_MB:
+        raise RuntimeError(
+            f"{path.name} 有 {size_mb:.0f} MB，超过 MinerU 单文件 {MINERU_MAX_MB} MB 上限；"
+            "先把源文件拆小（Office 拆成多份 / 图片逐张）再跑拆书。"
+        )
+    if suffix in MINERU_HTML_EXT:
+        if model not in ("MinerU-HTML", "html"):
+            print("[MinerU] HTML 源文件 → 自动改用 MinerU-HTML 模型（文档硬性要求）")
+            model = "html"
+    elif suffix in MINERU_OFFICE_EXT and model != "pipeline":
+        print(f"[MinerU] {suffix} 属 Office 文件 → 自动改用 pipeline 模型（Office 上更稳）")
+        model = "pipeline"
+    print(
+        f"[MinerU] 原生格式直送（{suffix}，{size_mb:.1f} MB）：不经 PDF、不切块 "
+        f"—— 云端单文件上限 {MINERU_MAX_MB} MB / {MINERU_MAX_PAGES} 页"
+    )
+    if dry_run:
+        print(f"[MinerU] 试运行：本会直接上传 {path.name}（model={model}），未消耗额度。")
+        return ""
+    with tempfile.TemporaryDirectory(prefix="mineru_native_") as tmp:
+        out_dir = Path(tmp) / "out"
+        run_mineru_extract(
+            cli, path, out_dir, token, language, model, timeout=timeout
+        )
+        content = collect_markdown(out_dir)
+        if images_target is not None:
+            src_img = out_dir / "images"
+            if src_img.is_dir():
+                dst_img = images_target / "images"
+                dst_img.mkdir(parents=True, exist_ok=True)
+                copied = 0
+                for f in src_img.iterdir():
+                    if f.is_file() and not (dst_img / f.name).exists():
+                        shutil.copy2(f, dst_img / f.name)
+                        copied += 1
+                if copied:
+                    print(f"    图片已保留：{copied} 张 → {dst_img}")
+        print(f"    完成：{len(content):,} 字符")
+        return content
 
 
 def mineru_ocr_pdf(
@@ -2389,26 +2460,40 @@ def process_file(src: Path, out_root: Path, max_chars: int, overlap: int, args):
         total_chars = len(text)
         print("[重切分] 从已有解析全文重新按标题切分（不消耗 MinerU 额度）")
     elif args.ocr == "mineru":
-        if src.suffix.lower() != ".pdf":
+        suffix = src.suffix.lower()
+        if suffix not in MINERU_NATIVE_EXT:
             print(
-                "[跳过] 只支持 PDF（全走 MinerU 云端识别）：\n"
-                "       EPUB / Word 请先转成 PDF；已有 00-MinerU解析全文.md 可直接重切分。"
+                f"[跳过] {suffix or '无后缀'} 不是 MinerU 原生格式。\n"
+                "      MinerU 原生支持：pdf、png/jpg/jpeg/webp/gif/bmp、doc/docx/ppt/pptx、html。\n"
+                "      EPUB / 其他格式请先转成上面任一格式（Office 可用 libreoffice 转 docx/pptx）。"
             )
             return
         engine = "mineru"
-        print(f"[MinerU] 用 MinerU 云端解析 {src.name}（公式转 LaTeX）...")
-        ocr_raw = mineru_ocr_pdf(
-            src,
-            token=args.mineru_token,
-            cli_arg=args.mineru_cli,
-            chunk_pages=args.mineru_chunk_pages,
-            language=args.mineru_language,
-            model=args.mineru_model,
-            dry_run=args.mineru_dry_run,
-            chunk_mb=args.mineru_chunk_mb,
-            dpi=args.mineru_dpi,
-            images_target=None if args.no_keep_images else book_dir,
-        )
+        if suffix == ".pdf":
+            print(f"[MinerU] 用 MinerU 云端解析 {src.name}（公式转 LaTeX）...")
+            ocr_raw = mineru_ocr_pdf(
+                src,
+                token=args.mineru_token,
+                cli_arg=args.mineru_cli,
+                chunk_pages=args.mineru_chunk_pages,
+                language=args.mineru_language,
+                model=args.mineru_model,
+                dry_run=args.mineru_dry_run,
+                chunk_mb=args.mineru_chunk_mb,
+                dpi=args.mineru_dpi,
+                images_target=None if args.no_keep_images else book_dir,
+            )
+        else:
+            print(f"[MinerU] 用 MinerU 云端解析 {src.name}（原生格式，不转 PDF）...")
+            ocr_raw = mineru_ocr_native(
+                src,
+                token=args.mineru_token,
+                cli_arg=args.mineru_cli,
+                language=args.mineru_language,
+                model=args.mineru_model,
+                dry_run=args.mineru_dry_run,
+                images_target=None if args.no_keep_images else book_dir,
+            )
         if args.mineru_dry_run:
             print("[试运行结束] 确认分块计划没问题后，去掉 --mineru-dry-run 正式执行。")
             return
@@ -2420,8 +2505,9 @@ def process_file(src: Path, out_root: Path, max_chars: int, overlap: int, args):
             return
     else:
         print(
-            f"[跳过] {src.name} 不是 PDF。\n"
-            "       只支持 PDF（全走 MinerU 云端识别，公式转 LaTeX）\n"
+            f"[跳过] {src.name} 不是可解析格式。\n"
+            "       拆书走 MinerU 云端，原生支持：pdf、png/jpg/jpeg/webp/gif/bmp、"
+            "doc/docx/ppt/pptx、html\n"
             "       或 00-MinerU解析全文.md 重切分。"
         )
         return
