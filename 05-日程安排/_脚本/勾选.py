@@ -67,7 +67,14 @@ VAULT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(SCRIPT_DIR))
 
 LOG_DIR = VAULT / "05-日程安排/06-日志"
-LOCK_FILE = SCRIPT_DIR / ".勾选.lock"
+
+
+# 排它锁必须放在**库外**：
+#   · 锁文件永远是 0 字节，而 AList/夸克 WebDAV 返回 0 字节文件是 HTTP 500，
+#     一旦被云同步传上去，就会变成“每次同步都失败一个文件”的永久钉子；
+#   · 库内文件会被云同步/备份工具搬运，锁本身也不该出现在关系图与版本历史里。
+_CACHE_HOME = Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache"))
+LOCK_FILE = _CACHE_HOME / "obsidian-日程安排" / ".勾选.lock"
 
 import sync_gcal as S  # noqa: E402  复用任务解析（📅 / 时间段 / uid）
 

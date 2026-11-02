@@ -276,8 +276,8 @@ def render(week: str, days: list[tuple[datetime, list[str]]], existing: dict,
         key = d.strftime("%m-%d")
         lines.append(f"## {d:%m-%d} {WEEKDAY_CN[d.weekday()]}")
         lines.append("")
-        if not items:
-            items = ["今天没崩（崩了也不补课）"]
+        # 2026-10-20 本人定：不再生成「今天没崩」这种兜底项 —— 当天任务完成就默认没崩。
+        # 一天没有任何打卡项时，那天的区段就空着（首页的连续天数会在这一天断，这是预期的）。
         if True:
             for item in items:
                 was = existing.get((key, item))

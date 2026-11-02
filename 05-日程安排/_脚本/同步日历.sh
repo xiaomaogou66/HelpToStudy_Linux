@@ -26,7 +26,10 @@ else
     PY="python3"
 fi
 
-if ! "$PY" -c "import googleapiclient, google_auth_oauthlib" 2>/dev/null; then
+# 注意：必须 import 到真模块，不能只 import 顶层包 ——
+#   云同步把 site-packages 的 .py 文件弄丢后，空目录在 Python 3 里仍可当
+#   namespace package 导入成功，检查会“假通过”，然后在真正调用时炸掉。
+if ! "$PY" -c "import googleapiclient.discovery, google_auth_oauthlib.flow" 2>/dev/null; then
     echo "❌ 缺少依赖，先跑："
     echo "   $VENV/bin/python -m pip install -r '$(pwd)/requirements.txt'"
     exit 1

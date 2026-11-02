@@ -418,12 +418,19 @@ def get_service(scope: list[str], cfg: dict, require_id: bool = True):
         return build("calendar", "v3", credentials=creds)
 
     if kind == "none":
-        sys.exit(
-            f"❌ 没找到凭据文件。需要的文件（二选一）：\n"
-            f"   · 服务账号（推荐）：{SA_FILE.relative_to(VAULT)}\n"
-            f"   · OAuth 桌面客户端：{CREDENTIALS_FILE.relative_to(VAULT)}\n"
-            f"   配置步骤见同目录的「README-首次配置.md」"
-        )
+        lines = ["❌ 没找到凭据文件。需要的文件（三选一）："]
+        if cfg.get("credentials_file"):
+            lines.append(
+                f"   · 配置里指定的：{cfg['credentials_file']}"
+                f"（当前不存在 —— 这是 00-配置/同步配置.json 的 credentials_file）"
+            )
+        lines += [
+            f"   · 服务账号（推荐）：{SA_FILE.relative_to(VAULT)}",
+            f"   · OAuth 桌面客户端：{CREDENTIALS_FILE.relative_to(VAULT)}",
+            "   配置步骤见同目录的「README-首次配置.md」；"
+            "密钥要放在库外（会被云同步/打包外泄），所以库外路径不存在是常见情况",
+        ]
+        sys.exit("\n".join(lines))
 
     # ── OAuth 桌面客户端：需要同意屏幕 + 发布成「正式」 ──
     from google.auth.transport.requests import Request

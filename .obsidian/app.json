@@ -9,5 +9,6 @@
   "useMarkdownLinks": false,
   "userIgnoreFilters": [
     "/备份"
-  ]
+  ],
+  "restrictedMode": false
 }
