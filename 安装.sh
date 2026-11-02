@@ -17,6 +17,7 @@ VAULT_PATH=""
 SKIP_PYTHON=false
 SKIP_MINERU=false
 SKIP_PLUGINS=false
+USE_QUARK_SYNC=true      # 推荐装：夸克网盘同步（可 --no-quark-sync 关掉）
 NO_DIALOG=false
 FORCE=false
 OPEN_OBSIDIAN=true
@@ -33,12 +34,17 @@ while [ $# -gt 0 ]; do
         --skip-python)      SKIP_PYTHON=true; shift ;;
         --skip-mineru)      SKIP_MINERU=true; shift ;;
         --skip-plugins)     SKIP_PLUGINS=true; shift ;;
+        --with-quark-sync)  USE_QUARK_SYNC=true; shift ;;
+        --no-quark-sync)    USE_QUARK_SYNC=false; shift ;;
         --no-dialog)        NO_DIALOG=true; shift ;;
         --force)            FORCE=true; shift ;;
         --no-open-obsidian) OPEN_OBSIDIAN=false; shift ;;
         --no-desktop)       NO_DESKTOP=true; shift ;;
         -h|--help)
-            echo "用法：安装.sh [--vault-path 路径|--skip-python|--skip-mineru|--skip-plugins|--no-dialog|--force|--no-open-obsidian|--no-desktop]"
+            echo "用法：安装.sh [--vault-path 路径|--skip-python|--skip-mineru|--skip-plugins|--with-quark-sync|--no-quark-sync|--no-dialog|--force|--no-open-obsidian|--no-desktop]"
+            echo ""
+            echo "  --with-quark-sync  装 quark-sync 插件（夸克网盘同步，默认就装，推荐）"
+            echo "  --no-quark-sync    不装 quark-sync，并从社区插件列表里移除（避免 Obsidian 报加载失败）"
             exit 0
             ;;
         *)
@@ -220,6 +226,63 @@ EOF
         update-desktop-database "$APPS_DIR" >/dev/null 2>&1 || true
     fi
     ok "应用启动器已注册：拆书（MinerU）、设置MinerU令牌、打开库（$APPS_DIR）"
+fi
+
+# ---------- 2.6 quark-sync 插件（可选；默认装，推荐） ----------
+QS_DIR="$VAULT_PATH/.obsidian/plugins/quark-sync"
+QS_REPO="xiaomaogou66/Quark-Sync-for-obsidian"
+QS_BASE="https://github.com/$QS_REPO/releases/latest/download"
+
+# 从社区插件列表里摘掉 quark-sync（关掉时用，免得 Obsidian 启动报「加载失败」）
+qs_disable() {
+    local cj="$VAULT_PATH/.obsidian/community-plugins.json"
+    [ -f "$cj" ] || return 0
+    if [ -n "$PY_CMD" ]; then
+        "$PY_CMD" - "$cj" <<'PYEOF'
+import json, sys, pathlib
+p = pathlib.Path(sys.argv[1])
+try:
+    lst = json.loads(p.read_text(encoding="utf-8"))
+except Exception:
+    sys.exit(0)
+if not isinstance(lst, list):
+    sys.exit(0)
+p.write_text(json.dumps([x for x in lst if x != "quark-sync"],
+                        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PYEOF
+    fi
+}
+
+# 主仓库里 quark-sync 是 git submodule（只有指针 + 源码），装上来的东西一律重建
+rm -rf "$QS_DIR"
+
+if [ "$SKIP_PLUGINS" = true ] || [ "$USE_QUARK_SYNC" = false ]; then
+    head "第 2.6 步：quark-sync 插件（按要求跳过）"
+    qs_disable
+    warn "未安装 quark-sync（夸克网盘同步），并已从社区插件列表移除 —— Obsidian 不会报加载失败。"
+    warn "以后想用：./安装.sh --vault-path \"$VAULT_PATH\" --with-quark-sync"
+    warn "         或手动把 main.js / manifest.json / styles.css 放进 .obsidian/plugins/quark-sync/"
+else
+    head "第 2.6 步：安装 quark-sync 插件（推荐：夸克网盘多端同步）"
+    mkdir -p "$QS_DIR"
+    qs_ok=true
+    for f in manifest.json main.js styles.css; do
+        if ! curl -fL --retry 3 --connect-timeout 20 -m 300 -o "$QS_DIR/$f" "$QS_BASE/$f" >/dev/null 2>&1; then
+            qs_ok=false
+            echo "  [下载失败] $f"
+        fi
+    done
+    if [ "$qs_ok" = true ] && [ -s "$QS_DIR/main.js" ] && [ -s "$QS_DIR/manifest.json" ]; then
+        qs_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$QS_DIR/manifest.json" | head -1)"
+        ok "quark-sync 已装好（v${qs_ver:-?}，来源 $QS_REPO 的最新 Release）"
+        warn "它默认开启；不想用网盘同步，可在 设置 → 第三方插件 里关掉，不影响其它功能。"
+    else
+        rm -rf "$QS_DIR"
+        qs_disable
+        warn "quark-sync 下载失败（多半是网络限制）。已从插件列表移除，Obsidian 不会报错。"
+        warn "重试：./安装.sh --vault-path \"$VAULT_PATH\" --with-quark-sync"
+        warn "手动：https://github.com/$QS_REPO/releases/latest 下载 main.js / manifest.json / styles.css"
+    fi
 fi
 
 # ---------- 3. Python 环境 ----------

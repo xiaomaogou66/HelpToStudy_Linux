@@ -3,7 +3,8 @@
 #  AI 学习工作流 · 一键安装（Release 引导器）
 #
 #  下载 Release 库压缩包 → 解压 → 环境配置 → 安装库 → 打开 Obsidian
-#  用法：QuickInstall.sh [--skip-env|--skip-claude|--update|安装.sh 参数]
+#  用法：QuickInstall.sh [--skip-env|--skip-claude|--update|--no-quark-sync|安装.sh 参数]
+#        默认装 quark-sync（夸克网盘同步，推荐）；--no-quark-sync 则不装并从启用列表移除
 # =============================================================
 set -euo pipefail
 

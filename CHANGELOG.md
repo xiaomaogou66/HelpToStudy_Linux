@@ -1,5 +1,23 @@
 # 更新记录
 
+## v0.3.6（2026-11-02）
+
+quark-sync 插件变成一道**安装选项**（默认装、推荐），并把选择写进 README。
+
+- `安装.sh` 新增 `--with-quark-sync`（默认）/ `--no-quark-sync`，新增**第 2.6 步**：
+  - 装：从 `xiaomaogou66/Quark-Sync-for-obsidian` 的 **最新 Release** 现拉
+    `main.js / manifest.json / styles.css` 进 `.obsidian/plugins/quark-sync/`，并打印装到的版本号；
+  - 不装：不下插件，并把 `quark-sync` 从 `.obsidian/community-plugins.json` 里摘掉，
+    Obsidian 启动不会报「插件加载失败」；
+  - 下载失败（网络限制）自动降级：删半成品目录 + 从启用列表移除 + 打印手动链接。
+- 安装前先 `rm -rf` 目标目录：避免把仓库里的 submodule 源码拷成“坏插件”（无 main.js）。
+- `QuickInstall.sh` 用法说明同步（参数会自动透传给 `安装.sh`）。
+- README 新增专节**「要不要用 quark-sync（推荐用）」**（默认/关闭/事后补装三条命令 + 降级行为），
+  并把原 FAQ 改成「装完没出现 / 报加载失败怎么办」。
+- 验证：两个分支都真跑了一遍库安装（`--vault-path /tmp/…`）——
+  默认路径下到 6.9 MB `main.js` 且启用列表保留；`--no-quark-sync` 目录不存在、
+  启用列表里已无 `quark-sync`；`bash -n` 全过。
+
 ## v0.3.5（2026-11-02）
 
 拆书支持 **MinerU 原生格式**：Word / PPT / Excel / 图片 / HTML 不再需要先转 PDF。

@@ -81,9 +81,45 @@ chmod +x HelpToStudy-QuickInstall.sh
 
 - 首次打开若提示「信任社区插件」，选信任（插件文件已随库装好，
   包含 Copilot、Dataview、QuickAdd、Templater、Claudian、Excalidraw CN）。
+- **quark-sync（夸克网盘同步）默认就装好**，详见下面「要不要用 quark-sync」。
 - 打开右侧边栏的 Claudian，在设置中选择后端（本机 Codex 或 Claude Code）。
 - 扫描版/数学书才需要：运行 `_工具/设置MinerU令牌.sh`，粘贴 MinerU 免费 Token。
 - 打开 `00-使用指南/📖 使用说明.md`，开始你的第一个学习主题。
+
+### 要不要用 quark-sync（推荐用）
+
+`quark-sync` 把库同步到**夸克网盘**，手机 / 另一台电脑打开同一个库，
+是这套工作流里最省事的「多端同步」方案（不想折腾 Gist / 私有仓库的话）。
+
+- **默认：装**（推荐）。安装脚本会从它的独立仓库
+  [`xiaomaogou66/Quark-Sync-for-obsidian`](https://github.com/xiaomaogou66/Quark-Sync-for-obsidian)
+  的 **最新 Release** 拉 `main.js / manifest.json / styles.css` 三个文件，
+  放进 `.obsidian/plugins/quark-sync/`，装完即可在「设置 → 第三方插件」里看到它。
+- **不想要：加 `--no-quark-sync`**。脚本不会下载插件，并且会把它从
+  `.obsidian/community-plugins.json` 里**摘掉**，避免 Obsidian 启动时提示「插件加载失败」。
+
+```bash
+# 默认（装 quark-sync）
+./QuickInstall.sh
+./安装.sh --vault-path "/home/me/我的资料/AI学习工作流"
+
+# 不装 quark-sync
+./QuickInstall.sh --no-quark-sync
+./安装.sh --vault-path "/home/me/我的资料/AI学习工作流" --no-quark-sync
+
+# 当时没装、后来想补上
+./安装.sh --vault-path "/home/me/我的资料/AI学习工作流" --with-quark-sync
+```
+
+- 装不上（公司网络 / 墙）时会**自动降级**：删掉半成品目录、把插件从启用列表移除，
+  并打印手动下载链接，不会把 Obsidian 弄成「一堆报错」的状态。
+- 装好之后**默认开启**；只想临时不用，去「设置 → 第三方插件」把它关掉即可，
+  其余功能（拆书、学案、日程、打卡）都不依赖它。
+
+> 关于仓库里的 `.obsidian/plugins/quark-sync/`：本仓库用 **git submodule** 指向它的源码仓库，
+> 所以版本库里只有一个提交指针，不放 6.7 MB 构建产物；Release 的 ZIP 里也不含这个插件——
+> 它由安装脚本按上面的规则现装。想自己从源码构建：`git submodule update --init --recursive`
+> 后进目录 `pnpm install && pnpm build`。
 
 ## 这个库能做什么
 
@@ -167,19 +203,12 @@ A：确认 `.obsidian/community-plugins.json` 已复制且首次打开时选择�
 A：先运行「环境配置.sh」安装 Claude Code（或自行安装 Codex CLI），
 并在 Claudian 设置里选择后端。
 
-**Q：`.obsidian/plugins/quark-sync` 里为什么没有 `main.js`？**
-A：这个插件在本仓库用 **git submodule** 跟踪它的独立源码仓库
-[`xiaomaogou66/Quark-Sync-for-obsidian`](https://github.com/xiaomaogou66/Quark-Sync-for-obsidian)，
-仓库里只放一个提交指针（不把 6.7 MB 构建产物塞进版本库）。
-要用就先取子模块并自己构建：
-
-```bash
-git submodule update --init --recursive
-cd .obsidian/plugins/quark-sync && pnpm install && pnpm build
-```
-
-只想要现成插件的话，去该仓库的 Releases 下载 `main.js`／`manifest.json`／`styles.css`
-放进同一目录即可。不想用网盘同步，在设置 → 第三方插件里关掉它就行（不影响其它功能）。
+**Q：装完之后 quark-sync 没出现 / 报加载失败？**
+A：默认会从上游 Release 现装（见「要不要用 quark-sync」）。如果是网络原因没下下来，
+脚本会自动把它从启用列表删掉，所以一般不会看到报错。
+想补装：`./安装.sh --vault-path "<你的库>" --with-quark-sync`；
+或者手动去 [Releases](https://github.com/xiaomaogou66/Quark-Sync-for-obsidian/releases/latest)
+下 `main.js`／`manifest.json`／`styles.css` 放进 `.obsidian/plugins/quark-sync/` 再启用。
 
 **Q：拆书报「找不到 MinerU 命令行工具」？**
 A：安装时已自动执行 `pip install mineru-open-api`（可用 `--skip-mineru` 跳过）。
