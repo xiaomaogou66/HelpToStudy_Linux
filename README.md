@@ -89,7 +89,7 @@ chmod +x HelpToStudy-QuickInstall.sh
 
 | 命令 / 工具 | 用途 |
 | --- | --- |
-| `_工具/拆书.sh` | PDF → MinerU 云端解析（公式转 LaTeX）+ 按章拆分 |
+| `_工具/拆书.sh` | 任意文档（PDF/Word/PPT/Excel/图片/HTML，**不用先转 PDF**）→ MinerU 云端解析（公式转 LaTeX）+ 按章拆分 |
 | `_工具/设置MinerU令牌.sh` | 保存 MinerU Token |
 | `/拆书` | 导入教材 PDF 并按章节拆分（Claudian 中触发） |
 | `/新主题-拆解与计划` | 五级水平拆解 + 二八定律 10 次学习计划，一键写入笔记 |
@@ -166,6 +166,20 @@ A：确认 `.obsidian/community-plugins.json` 已复制且首次打开时选择�
 **Q：Claudian 提示找不到 Codex / Claude？**
 A：先运行「环境配置.sh」安装 Claude Code（或自行安装 Codex CLI），
 并在 Claudian 设置里选择后端。
+
+**Q：`.obsidian/plugins/quark-sync` 里为什么没有 `main.js`？**
+A：这个插件在本仓库用 **git submodule** 跟踪它的独立源码仓库
+[`xiaomaogou66/Quark-Sync-for-obsidian`](https://github.com/xiaomaogou66/Quark-Sync-for-obsidian)，
+仓库里只放一个提交指针（不把 6.7 MB 构建产物塞进版本库）。
+要用就先取子模块并自己构建：
+
+```bash
+git submodule update --init --recursive
+cd .obsidian/plugins/quark-sync && pnpm install && pnpm build
+```
+
+只想要现成插件的话，去该仓库的 Releases 下载 `main.js`／`manifest.json`／`styles.css`
+放进同一目录即可。不想用网盘同步，在设置 → 第三方插件里关掉它就行（不影响其它功能）。
 
 **Q：拆书报「找不到 MinerU 命令行工具」？**
 A：安装时已自动执行 `pip install mineru-open-api`（可用 `--skip-mineru` 跳过）。

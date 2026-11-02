@@ -1,6 +1,6 @@
 # 更新记录
 
-## 未发布
+## v0.3.5（2026-11-02）
 
 拆书支持 **MinerU 原生格式**：Word / PPT / Excel / 图片 / HTML 不再需要先转 PDF。
 
@@ -14,6 +14,16 @@
 - `.claude/commands/拆书.md` + `.pi/skills/chai-shu.md`（同源两份）文档口径同步。
 - 验证：`py_compile` / `bash -n` 通过；真跑 `.docx`（pipeline）与 `.jpg`、`.html`（MinerU-HTML）dry-run 通过；
   `split_textbook.py --audit` 全库 17 本切分无回归。
+
+另外：
+
+- `.obsidian/plugins/quark-sync` 改为 **git submodule**，指向独立源码仓库
+  [`xiaomaogou66/Quark-Sync-for-obsidian`](https://github.com/xiaomaogou66/Quark-Sync-for-obsidian)：
+  仓库只留提交指针，6.7 MB 构建产物不再进版本库；`scripts/sync-from-vault.sh` 的插件拷贝循环
+  已跳过 quark-sync（不然从库同步会把子模块工作区撑脏）。要用需 `git submodule update --init` 后
+  本地 `pnpm build`，细节见 README 的 FAQ。
+- README：「这个库能做什么」表里的 `_工具/拆书.sh` 一行改为「任意文档…**不用先转 PDF**」，
+  并新增 quark-sync 子模块的 FAQ。
 
 ## v0.3.4（2026-10-05）
 

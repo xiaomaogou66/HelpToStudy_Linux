@@ -55,6 +55,9 @@ copy .obsidian/app.json .obsidian/appearance.json .obsidian/community-plugins.js
      .obsidian/themes .obsidian/snippets
 for d in "$VAULT"/.obsidian/plugins/*/; do
     name="$(basename "$d")"
+    # quark-sync 在本仓库是 **git submodule**（指向 xiaomaogou66/Quark-Sync-for-obsidian），
+    # 拷文件进去会把子模块工作区弄脏，也会把 6.7 MB 构建产物塞进版本库 —— 跳过。
+    [ "$name" = "quark-sync" ] && { echo "  [跳过] .obsidian/plugins/quark-sync（submodule，源码在独立仓库）"; continue; }
     copy ".obsidian/plugins/$name/manifest.json" \
          ".obsidian/plugins/$name/main.js" \
          ".obsidian/plugins/$name/styles.css"
