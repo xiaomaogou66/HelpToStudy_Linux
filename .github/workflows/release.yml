@@ -127,4 +127,4 @@ jobs:
           echo "fake" > /tmp/book/notbook.epub
           set +e
           /tmp/AI学习工作流/_工具/.venv/bin/python /tmp/AI学习工作流/_工具/split_textbook.py /tmp/book/notbook.epub --out /tmp/AI学习工作流/04-教材分块 > /tmp/out.txt 2>&1
-          grep -q "仅支持" /tmp/out.txt && echo "非 PDF 提示 OK"
+          grep -q "原生支持" /tmp/out.txt && echo "非 PDF 提示 OK（列出 MinerU 原生格式）"

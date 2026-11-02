@@ -273,7 +273,9 @@ else
         fi
     done
     if [ "$qs_ok" = true ] && [ -s "$QS_DIR/main.js" ] && [ -s "$QS_DIR/manifest.json" ]; then
-        qs_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$QS_DIR/manifest.json" | head -1)"
+        # 不用 `| head`：set -o pipefail 下 head 提前退出会让 sed 收到 SIGPIPE（exit 141）
+        qs_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$QS_DIR/manifest.json")"
+        qs_ver="${qs_ver%%$'\n'*}"
         ok "quark-sync 已装好（v${qs_ver:-?}，来源 $QS_REPO 的最新 Release）"
         warn "它默认开启；不想用网盘同步，可在 设置 → 第三方插件 里关掉，不影响其它功能。"
     else

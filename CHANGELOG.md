@@ -1,5 +1,15 @@
 # 更新记录
 
+## v0.3.7（2026-11-02）
+
+修掉 v0.3.6 在 CI `smoke-test` 里的两处失败（该 job 是 `continue-on-error`，所以 Release 照发，但红着不体面）。
+
+- `安装.sh`：打印 quark-sync 版本时用了 `sed … | head -1`，在 `set -o pipefail` 下 `head` 提前退出
+  会让 `sed` 收到 SIGPIPE（**exit 141**）→ 改为纯 `sed` + 参数展开取首行。
+- `.github/workflows/release.yml`：冒烟测试里「非 PDF 输入提示」的断言原本 `grep -q "仅支持"`，
+  而新提示语已改成「不是 MinerU 原生格式 / MinerU 原生支持：…」→ 断言同步为 `grep -q "原生支持"`。
+- 本地复跑：默认安装打出「quark-sync 已装好（v1.5.1…）」并 exit 0；`.epub` 提示断言通过。
+
 ## v0.3.6（2026-11-02）
 
 quark-sync 插件变成一道**安装选项**（默认装、推荐），并把选择写进 README。
