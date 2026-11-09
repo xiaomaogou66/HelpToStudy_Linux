@@ -1,5 +1,29 @@
 # 更新记录
 
+## v0.3.8（2026-11-09）
+
+新增**本机免认证同步网关**：`quark-sync` 的 WebDAV 密码不再需要明文落盘。
+
+- 起因是一次真实事故：OpenList 的 WebDAV 只认 Basic 认证，插件只能把用户名密码明文写进
+  `.obsidian/plugins/quark-sync/data.json`；而当时开着 `configDirSyncMode: all` +
+  `conflictStrategy: diff3`，一次接收方向的全量同步把**另一台设备**的 `.obsidian/` 覆盖过来，
+  三方合并还往 JSON 里写下 `<<<<<<< LOCAL / ======= / >>>>>>> REMOTE` ——
+  `community-plugins.json`、`appearance.json`、`obsidian-style-settings/data.json`
+  三个文件因此解析失败（插件列表与主题全废），插件自己的 `data.json` 也被换成了失效端点（401）。
+  数据没丢（笔记本体完好），但配置确实“被同步搞丢”了。
+- `_工具/设置夸克同步网关.sh`（新增）：用 `rclone serve webdav` 在 `127.0.0.1:5245`
+  再起一层**不认证**的 WebDAV（`--vfs-cache-mode writes`，仅回环），
+  生成并启用 `~/.config/systemd/user/rclone-webdav-obsidian.service`；
+  夸克口令仍在 `rclone.conf` 里以 obscured 密文保存，插件端用户名/密码留空。
+  支持 `--port` / `--remote` / `--status` / `--uninstall`，重复运行即幂等更新。
+- README 新增「密码不想落进配置文件？用本机免认证网关（推荐）」一节：
+  插件里该填的 7 项 + 两条踩坑规则（**别用 `diff3`**、**别同步 `.obsidian`**）。
+- `scripts/sync-from-vault.sh` 白名单加上 `_工具/设置夸克同步网关.sh`。
+- 验证（本机 CachyOS 实跑）：`--status` 探活 `PROPFIND → 207`；经 `5245` 上传下载
+  `PUT 201 / GET 200 / DELETE 204`；重启 Obsidian 后插件经新网关完成启动同步
+  （OpenList 侧 `201 PUT`）；把探针文件写进 `.obsidian/`，rclone 日志中该文件出现次数为 **0**
+  （配置目录排除生效）；`bash -n` 通过。
+
 ## v0.3.7（2026-11-02）
 
 修掉 v0.3.6 在 CI `smoke-test` 里的两处失败（该 job 是 `continue-on-error`，所以 Release 照发，但红着不体面）。

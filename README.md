@@ -121,6 +121,46 @@ chmod +x HelpToStudy-QuickInstall.sh
 > 它由安装脚本按上面的规则现装。想自己从源码构建：`git submodule update --init --recursive`
 > 后进目录 `pnpm install && pnpm build`。
 
+#### 密码不想落进配置文件？用本机免认证网关（推荐）
+
+OpenList / Alist 的 WebDAV **只支持 Basic 认证**，所以 `quark-sync` 只能把你的
+WebDAV 用户名密码**明文**写进 `.obsidian/plugins/quark-sync/data.json`（实测空密码会被
+OpenList 直接 `401`，绕不过去）。
+
+本仓库带一个脚本：用 `rclone` 在 `127.0.0.1` 上再起一层**不认证**的 WebDAV，
+夸克口令继续以 rclone 的 obscured 密文存在 `~/.config/rclone/rclone.conf` 里，
+插件那边的用户名/密码留空——**配置文件里不再有任何密码**。
+
+```bash
+_工具/设置夸克同步网关.sh             # 装好并启动（默认 127.0.0.1:5245）
+_工具/设置夸克同步网关.sh --status     # 看状态 / 探活
+_工具/设置夸克同步网关.sh --uninstall  # 卸掉，改回 OpenList 直连
+```
+
+前置：OpenList（或 Alist）已在跑，且 `rclone.conf` 里有一个指向它的 remote（默认 `quark`）。
+脚本会生成 `~/.config/systemd/user/rclone-webdav-obsidian.service`，只监听回环地址。
+
+装完在插件里这样填（**设置 → Quark Sync**）：
+
+| 项 | 值 |
+| --- | --- |
+| WebDAV 地址 | `http://127.0.0.1:5245` |
+| 用户名 / 密码 | 都**留空** |
+| 远端目录 | **留空**（网关根就是 rclone remote 里的子目录） |
+| 同步模式 | 松散（loose） |
+| 冲突策略 | **本地优先 `local-priority`** |
+| 同步配置目录 `.obsidian` | **关（none）** |
+| 过滤规则 | 加一条 `**/.obsidian` 排除 |
+
+最后两项不是可选项，是**踩过的坑**：
+
+- **冲突策略别选 `diff3`**。它会把 `<<<<<<< LOCAL / ======= / >>>>>>> REMOTE`
+  直接写进 `.json` 文件——`community-plugins.json` 一旦带这些标记就解析失败（插件列表、主题全废）。
+- **`.obsidian` 不要同步**。各设备的网关地址本来就不同（手机连不到 `127.0.0.1:5245`），
+  同步配置目录只会让两台机器的 `appearance.json` / `community-plugins.json` 互相覆盖，
+  而插件自己的 `data.json` 里还带着各自的地址和凭据。要共享个别插件设置，
+  用「`configDirSyncMode: none` + `configDirExtraPaths` 白名单」。
+
 ## 这个库能做什么
 
 | 命令 / 工具 | 用途 |

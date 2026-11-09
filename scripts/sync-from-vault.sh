@@ -63,6 +63,7 @@ for d in "$VAULT"/.obsidian/plugins/*/; do
          ".obsidian/plugins/$name/styles.css"
 done
 copy _工具/split_textbook.py _工具/拆书.sh _工具/设置MinerU令牌.sh \
+     _工具/设置夸克同步网关.sh \
      _工具/sync_pi_skills.py _工具/requirements.txt _工具/拆书.desktop
 copy 05-日程安排/_脚本 05-日程安排/06-日志/说明-怎么打卡.md 05-日程安排/00-配置/多端同步.md
 echo "    拷入 $copied 项（缺失 $skipped 项）"
